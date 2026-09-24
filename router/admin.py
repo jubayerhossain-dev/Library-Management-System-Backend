@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, APIRouter, UploadFile, File
 import model
 from model import Books, Reservation, Users, Issuerecord
 from sqlalchemy.orm import Session
@@ -32,6 +32,7 @@ class BookCreate(BaseModel):
     description: str
     price: int = Field(..., gt=0)
     total_copy: int = Field(default=1)
+    cover_image: UploadFile = File(None)
     
 
 @router.post('/admin/create_book')
@@ -58,6 +59,7 @@ class BookUpdate(BaseModel):
     price: Optional[int] = None
     total_copy: Optional[int] = None
     avalaible_copy: Optional[int] = None
+    cover_image: Optional[UploadFile] = None
    
 
 @router.put('/admin/updatebook/{book_id}')
