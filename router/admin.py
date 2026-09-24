@@ -32,7 +32,8 @@ class BookCreate(BaseModel):
     description: str
     price: int = Field(..., gt=0)
     total_copy: int = Field(default=1)
-    cover_image: UploadFile = File(None)
+    # cover_image: UploadFile = File(None)
+    cover_image: Optional[str] = None
     
 
 @router.post('/admin/create_book')
@@ -45,6 +46,7 @@ def create_book(db: db_dependency, user: user_dependency, new_book: BookCreate):
     
     db.add(book_model)
     db.commit()
+    db.refresh(book_model)  
     
     return JSONResponse(status_code=201, content="Book Add Successful")
 
@@ -59,7 +61,7 @@ class BookUpdate(BaseModel):
     price: Optional[int] = None
     total_copy: Optional[int] = None
     avalaible_copy: Optional[int] = None
-    cover_image: Optional[UploadFile] = None
+    cover_image: Optional[str] = None
    
 
 @router.put('/admin/updatebook/{book_id}')
