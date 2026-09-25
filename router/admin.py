@@ -178,7 +178,7 @@ def calculate_fine(due_date: datetime, return_date: datetime):
         return round(float(overdue_days * fine_amount), 2)
     else:
         return 0.0
-    
+# -----------------------------------------------------#   
 @router.put('/admin/return_book/{issue_id}')
 def return_book(db: db_dependency,user: user_dependency, issue_id: int):
 
@@ -192,13 +192,13 @@ def return_book(db: db_dependency,user: user_dependency, issue_id: int):
         
     return_date = datetime.now()
     fine = calculate_fine(issue.due_date, return_date)
+
+    if issue.status == 'returned':
+        raise HTTPException(status_code=400, detail='Already returned')
     
     issue.return_date = return_date
     issue.status = 'returned'
     issue.fine_amount = fine
-
-    if issue.status == 'returned':
-        raise HTTPException(status_code=400, detail='Already returned')
 
     book = db.query(Books).filter(Books.id == issue.book_id).first()
     book.avalaible_copy += 1
