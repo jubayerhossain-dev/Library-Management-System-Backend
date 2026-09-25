@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from router import admin, auth
 from router.auth import token_decode
 from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
 
 
 router = APIRouter()
@@ -89,19 +90,29 @@ def update_book(db: db_dependency, user: user_dependency, update_book: BookUpdat
 def delete_book(db: db_dependency, user: user_dependency, book_id: int):
     
     if user is None or user.get('role') != 'librarian':
-        raise HTTPException(status_code=403, detail='Faild Authentication')
+        raise HTTPException(status_code=403, detail='Failed Authentication')
     
     book_model = db.query(Books).filter(Books.id == book_id).first()
-    
     if book_model is None:
         raise HTTPException(status_code=404, detail='Book Not Found')
     
-    db.delete(book_model)
-    db.commit()
+    try:
+        # আগে related rows delete করুন
+        db.query(Issuerecord).filter(Issuerecord.book_id == book_id).delete()
+        db.query(Reservation).filter(Reservation.book_id == book_id).delete()
+        
+        db.delete(book_model)
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Constraint error: {e.orig}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
     
-    return JSONResponse(status_code=201, content="Book Update Successful")
+    return JSONResponse(status_code=200, content={"message": "Book deleted successfully"})
 
-
+# ---------------------------------------------------------------#
 class IssueCreate(BaseModel):
     book_id: Optional[int] = None
     user_id: Optional[int] = None
@@ -139,6 +150,8 @@ def create_issue(db: db_dependency,user: user_dependency, issue_record: IssueCre
     )
 
     # Decrease available copy
+    if book.avalaible_copy <= 0:
+        raise HTTPException(status_code=400, detail='No available copy')
     book.avalaible_copy -= 1
 
     # Check reservation
@@ -152,16 +165,11 @@ def create_issue(db: db_dependency,user: user_dependency, issue_record: IssueCre
         reservation.status = 'approved'
 
     db.add(issuecollect)
-
     db.commit()
 
-    return JSONResponse(
-        status_code=201,
-        content="Issued Collected"
-    )
+    return JSONResponse(status_code=201,content="Issued Collected")
     
-    
-    
+# -------------------------------------------------# 
 fine_amount = 20 
 def calculate_fine(due_date: datetime, return_date: datetime):
     overdue_days = (return_date.date() - due_date.date()).days
@@ -188,7 +196,10 @@ def return_book(db: db_dependency,user: user_dependency, issue_id: int):
     issue.return_date = return_date
     issue.status = 'returned'
     issue.fine_amount = fine
-    
+
+    if issue.status == 'returned':
+        raise HTTPException(status_code=400, detail='Already returned')
+
     book = db.query(Books).filter(Books.id == issue.book_id).first()
     book.avalaible_copy += 1
     
@@ -207,6 +218,9 @@ def fine_paid(db: db_dependency,user: user_dependency, issue_id: int):
 
     if issue is None:
         raise HTTPException(status_code=404,detail='Issue Not Found')
+
+    if issue.status != 'returned':
+         raise HTTPException(status_code=400, detail='Book not returned yet')
     
     issue.fine_paid = True
     
@@ -219,6 +233,6 @@ def fine_paid(db: db_dependency,user: user_dependency, issue_id: int):
 @router.get("/reserve/all_book")
 def get_all_reserve_book(user: user_dependency, db: db_dependency):
 
-    if user or user.get('role') == 'librarian':
+    if user is None or user.get('role') != 'librarian':
         all_reserve = db.query(Reservation).all()
         return all_reserve
