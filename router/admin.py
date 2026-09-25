@@ -234,8 +234,10 @@ def fine_paid(db: db_dependency,user: user_dependency, issue_id: int):
 def get_all_reserve_book(user: user_dependency, db: db_dependency):
 
     if user is None or user.get('role') != 'librarian':
-        all_reserve = db.query(Reservation).all()
-        return all_reserve
+        raise HTTPException(status_code=403, detail='Librarian access required')
+
+    all_reserve = db.query(Reservation).all()
+    return all_reserve
 
 
 @router.get('/admin/issueall')
