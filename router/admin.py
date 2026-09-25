@@ -97,6 +97,7 @@ def delete_book(db: db_dependency, user: user_dependency, book_id: int):
         raise HTTPException(status_code=404, detail='Book Not Found')
     
     db.delete(book_model)
+    db.commit()
     
     return JSONResponse(status_code=201, content="Book Update Successful")
 
@@ -166,7 +167,7 @@ def calculate_fine(due_date: datetime, return_date: datetime):
     overdue_days = (return_date.date() - due_date.date()).days
     
     if overdue_days > 0:
-        return (overdue_days * fine_amount, 2)
+        return round(float(overdue_days * fine_amount), 2)
     else:
         return 0.0
     
@@ -212,3 +213,12 @@ def fine_paid(db: db_dependency,user: user_dependency, issue_id: int):
     db.commit()
     
     return JSONResponse(status_code=201, content="Fine Paid Successfully..")
+
+
+
+@router.get("/reserve/all_book")
+def get_all_reserve_book(user: user_dependency, db: db_dependency):
+
+    if user or user.get('role') == 'librarian':
+        all_reserve = db.query(Reservation).all()
+        return all_reserve
