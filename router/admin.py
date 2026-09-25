@@ -236,3 +236,13 @@ def get_all_reserve_book(user: user_dependency, db: db_dependency):
     if user is None or user.get('role') != 'librarian':
         all_reserve = db.query(Reservation).all()
         return all_reserve
+
+
+@router.get('/admin/issueall')
+def issueall(db: db_dependency, user: user_dependency):
+
+    if user is None or user.get('role') != 'librarian':
+        raise HTTPException(status_code=403,detail='Failed Authentication')
+
+    allissue = db.query(Reservation).filter(Reservation.status == "approved").all()
+    return allissue
