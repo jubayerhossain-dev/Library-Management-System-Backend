@@ -85,11 +85,11 @@ def update_book(db: db_dependency, user: user_dependency, update_book: BookUpdat
     return JSONResponse(status_code=201, content="Book Update Successful")
 
 #-----------------------------Delete--------------------------------------#
-@router.delete('/admin/updatebook/{book_id}')
+@router.delete('/admin/deletebook/{book_id}')
 def delete_book(db: db_dependency, user: user_dependency, book_id: int):
     
     if user is None or user.get('role') != 'librarian':
-        raise HTTPException(status_code=404, detail='Faild Authentication')
+        raise HTTPException(status_code=403, detail='Faild Authentication')
     
     book_model = db.query(Books).filter(Books.id == book_id).first()
     
